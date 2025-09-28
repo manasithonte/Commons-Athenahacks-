@@ -1,0 +1,293 @@
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #FDF6E8;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+}
+
+/* Main Content Styles */
+.main-content {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.section-title {
+  color: #4F694C;
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+  font-size: 2.5rem;
+  text-align: center;
+  margin: 1em 0.25rem 0 0 ;
+  font-weight: 500;
+}
+
+.section-subtitle {
+  color: #4F694C;
+  font-size: 1.4rem;
+  text-align: center;
+  padding-top: 0.5rem;
+  margin-bottom: 2rem;
+  font-style: italic;
+}
+
+/* Top Recommendations */
+.top-recommendations {
+  margin-bottom: 3rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 2rem;
+}
+
+/* Commons Grid Styles */
+.commons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+/* Filter Section */
+.filter-section {
+  display: flex;
+  gap: 2rem;
+  margin-top: 2rem;
+  width: 100%;
+  background: #FDF6E8;
+  padding: 0 4rem;
+  box-sizing: border-box;
+}
+
+.filter-sidebar {
+  width: 300px;
+  background: #303030;
+  padding: 2rem;
+  border-radius: 15px;
+  color: white;
+  height: fit-content;
+  flex-shrink: 0;
+}
+
+.filter-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-title {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  color: white;
+  font-weight: 500;
+}
+
+.filter-group {
+  margin-bottom: 1.5rem;
+}
+
+.filter-group:last-child {
+  margin-bottom: 0;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+}
+
+.filter-group h3 {
+  color: #FDF6E8;
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+/* Commons Card Styles */
+.commons-card {
+  width: 100%;
+  background: #9CB97D;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1.5rem;
+  color: #FDF6E8;
+  aspect-ratio: 3/4;
+  border: 3px solid transparent;
+}
+
+.mentor-card {
+  border-color: #FFD700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.card-header {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.profile-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  margin: 0;
+  overflow: hidden;
+  object-fit: cover;
+}
+
+.year-tag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #4F694C;
+  color: #FDF6E8;
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.profile-info {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 0.75rem;
+  text-align: center;
+  min-height: 0;
+}
+
+.profile-name {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.profile-year {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  align-items: center;
+  /* padding: 0 0.5rem; */
+}
+
+.tag {
+  background: #303030;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+}
+
+.profile-details {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem;
+}
+
+.profile-detail {
+  font-size: 1.1rem;
+  line-height: 1;
+  margin: 0;
+}
+
+.profile-detail strong {
+  opacity: 0.9;
+}
+
+.add-common-btn {
+  width: 100%;
+  background: #303030;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-common-btn:hover {
+  background: white;
+  color: #303030;
+}
+
+.section-divider {
+  text-align: center;
+  color: #4F694C;
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 2rem 0;
+  text-decoration: none;
+  display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .commons-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+  }
+
+  .section-title {
+    font-size: 2rem;
+  }
+
+  .commons-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .filter-section {
+    flex-direction: column;
+  }
+
+  .filter-sidebar {
+    width: 100%;
+  }
+}
+
+.filter-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #FDF6E8;
+  border-radius: 8px;
+  background: #363433;
+  color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #9CB97D;
+}
+
+.filter-select option {
+  background: #363433;
+  color: white;
+  padding: 0.5rem;
+} 
