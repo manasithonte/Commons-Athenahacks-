@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import LoadingSpinner from './LoadingSpinner';
 import './Home.css';
 
 const Home = () => {
@@ -10,12 +11,100 @@ const Home = () => {
     mentor: false
   });
 
-  // Mock departments and classes for filters
-  const availableDepartments = ["All Departments", "Neuroscience", "Global Health", "Computer Science", "Business", "Psychology"];
-  const availableClasses = ["All Classes", "BISC 408", "CSCI 401", "PSYC 355", "BUAD 302"];
+  const [topRecommendations, setTopRecommendations] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [showMore, setShowMore] = useState(false);
 
-  // Mock data for top recommendations
-  const topRecommendations = [
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+  // Get user from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userUscId = user.usc_id || '1234567890'; // fallback
+
+  // Fetch data from backend
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSendFriendRequest = async (targetUser) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/send-friend-request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          usc_id: userUscId,
+          matching_id: targetUser.usc_id || targetUser.id
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Friend request sent:', result);
+        alert('Friend request sent successfully!');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send friend request');
+      }
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      alert('Error sending friend request. Please try again.');
+    }
+  };
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get user from localStorage
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user.id;
+
+      // Fetch recommendations
+      if (userId) {
+        const recommendationsResponse = await fetch(`${API_BASE_URL}/api/users/recommend-buddies?user_id=${userId}`);
+        if (recommendationsResponse.ok) {
+          const recommendationsData = await recommendationsResponse.json();
+          setTopRecommendations(recommendationsData.recommendations || []);
+        }
+      }
+
+      // Fetch all users
+      const usersResponse = await fetch(`${API_BASE_URL}/api/users/get-all-users`);
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json();
+        setAllUsers(usersData);
+        setFilteredUsers(usersData);
+      }
+
+      // Fetch departments
+      const deptResponse = await fetch(`${API_BASE_URL}/api/users/get_dep`);
+      if (deptResponse.ok) {
+        const deptData = await deptResponse.json();
+        setDepartments(['All Departments', ...deptData]);
+      }
+
+      // Fetch courses
+      const coursesResponse = await fetch(`${API_BASE_URL}/api/users/get_courses`);
+      if (coursesResponse.ok) {
+        const coursesData = await coursesResponse.json();
+        setCourses(['All Classes', ...coursesData.slice(0, 20)]); // Limit for UI
+      }
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mock data for top recommendations (fallback)
+  const mockTopRecommendations = [
     {
       name: "ANAAYA MEHRA",
       year: "Senior",
@@ -45,63 +134,17 @@ const Home = () => {
     }
   ];
 
-  // Mock data for other users
-  const otherUsers = [
-    {
-      name: "Sarah Chen",
-      year: "Junior",
-      major: ["COMPUTER SCIENCE"],
-      classes: "CSCI 401",
-      interests: ["Coding", "Gaming", "Coffee"],
-      image: "img/user.png",
-      isMentor: true
-    },
-    {
-      name: "Michael Park",
-      year: "Senior",
-      major: ["BUSINESS", "PSYCHOLOGY"],
-      classes: "BUAD 302",
-      interests: ["Startups", "Reading", "Tennis"],
-      image: "img/user.png",
-      isMentor: false
-    },
-    {
-      name: "Emily Rodriguez",
-      year: "Sophomore",
-      major: ["PSYCHOLOGY"],
-      classes: "PSYC 355",
-      interests: ["Research", "Hiking", "Photography"],
-      image: "img/user.png",
-      isMentor: true
-    },
-    {
-      name: "James Wilson",
-      year: "Junior",
-      major: ["GLOBAL HEALTH"],
-      classes: "BISC 408",
-      interests: ["Volunteering", "Travel", "Music"],
-      image: "img/user.png",
-      isMentor: false
-    },
-    {
-      name: "Sophia Kim",
-      year: "Senior",
-      major: ["COMPUTER SCIENCE", "PSYCHOLOGY"],
-      classes: "CSCI 401",
-      interests: ["AI", "Art", "Running"],
-      image: "img/user.png",
-      isMentor: true
-    },
-    {
-      name: "David Thompson",
-      year: "Junior",
-      major: ["NEUROSCIENCE"],
-      classes: "BISC 408",
-      interests: ["Research", "Basketball", "Cooking"],
-      image: "img/user.png",
-      isMentor: false
-    }
-  ];
+  // Transform backend data to match frontend format
+  const transformUserData = (user) => ({
+    id: user._id,
+    name: `${user.firstname || user.first_name || ''} ${user.lastname || user.last_name || ''}`.trim(),
+    year: user.current_year || 'Unknown',
+    major: [user.dept || 'Unknown'],
+    classes: Array.isArray(user.classes) ? user.classes.join(', ') : (user.classes || 'Unknown'),
+    interests: Array.isArray(user.interests) ? user.interests : [user.interests || 'Unknown'],
+    image: "img/user.png",
+    isMentor: user.mentor === 'Yes' || user.mentor === 'true' || user.mentor === true
+  });
 
   const CommonCard = ({ user }) => (
     <div className={`commons-card ${user.isMentor ? 'mentor-card' : ''}`}>
@@ -129,7 +172,12 @@ const Home = () => {
           </p>
         </div>
       </div>
-      <button className="add-common-btn">REQUEST</button>
+      <button 
+        className="add-common-btn"
+        onClick={() => handleSendFriendRequest(user)}
+      >
+        REQUEST
+      </button>
     </div>
   );
 
@@ -137,16 +185,29 @@ const Home = () => {
     const newFilters = { ...filters, [type]: value };
     setFilters(newFilters);
     
-    return otherUsers.filter(user => {
-      if (newFilters.mentor && !user.isMentor) return false;
+    const filtered = allUsers.filter(user => {
+      const transformedUser = transformUserData(user);
+      if (newFilters.mentor && !transformedUser.isMentor) return false;
       if (newFilters.department !== "All Departments" && 
-          !user.major.some(m => m.toUpperCase() === newFilters.department.toUpperCase())) return false;
-      if (newFilters.class !== "All Classes" && user.classes !== newFilters.class) return false;
+          !transformedUser.major.some(m => m.toUpperCase() === newFilters.department.toUpperCase())) return false;
+      if (newFilters.class !== "All Classes" && !transformedUser.classes.includes(newFilters.class)) return false;
       return true;
     });
+    
+    setFilteredUsers(filtered);
   };
 
-  const [filteredUsers, setFilteredUsers] = useState(otherUsers);
+  if (loading) {
+    return (
+      <div className="home-container">
+        <Navbar />
+        <main className="main-content">
+          <LoadingSpinner message="Finding your perfect study buddies..." />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="home-container">
@@ -156,14 +217,21 @@ const Home = () => {
           <h1 className="section-title">YOUR TOP COMMONS....</h1>
           <p className="section-subtitle">based on your profile</p>
           <div className="commons-grid">
-            {topRecommendations.map((user, index) => (
+            {(topRecommendations.length > 0 ? topRecommendations.map(transformUserData) : mockTopRecommendations).map((user, index) => (
               <CommonCard key={index} user={user} />
             ))}
           </div>
         </div>
 
-        <div className="section-divider">see more</div>
+        <div 
+          className="section-divider" 
+          onClick={() => setShowMore(!showMore)}
+          style={{ cursor: 'pointer' }}
+        >
+          {showMore ? 'see less' : 'see more'}
+        </div>
 
+        {showMore && (
         <div className="filter-section">
           <aside className="filter-sidebar">
             <h2 className="filter-title">FILTER BY:</h2>
@@ -172,7 +240,7 @@ const Home = () => {
                 <input 
                   type="checkbox" 
                   checked={filters.mentor} 
-                  onChange={(e) => setFilteredUsers(handleFilter('mentor', e.target.checked))}
+                  onChange={(e) => handleFilter('mentor', e.target.checked)}
                 />
                 mentor
               </label>
@@ -182,9 +250,9 @@ const Home = () => {
               <select 
                 className="filter-select"
                 value={filters.department}
-                onChange={(e) => setFilteredUsers(handleFilter('department', e.target.value))}
+                onChange={(e) => handleFilter('department', e.target.value)}
               >
-                {availableDepartments.map((dept, index) => (
+                {departments.map((dept, index) => (
                   <option key={index} value={dept}>{dept}</option>
                 ))}
               </select>
@@ -194,9 +262,9 @@ const Home = () => {
               <select 
                 className="filter-select"
                 value={filters.class}
-                onChange={(e) => setFilteredUsers(handleFilter('class', e.target.value))}
+                onChange={(e) => handleFilter('class', e.target.value)}
               >
-                {availableClasses.map((className, index) => (
+                {courses.map((className, index) => (
                   <option key={index} value={className}>{className}</option>
                 ))}
               </select>
@@ -206,11 +274,12 @@ const Home = () => {
           <div className="filter-content">
             <div className="commons-grid">
               {filteredUsers.map((user, index) => (
-                <CommonCard key={index} user={user} />
+                <CommonCard key={index} user={transformUserData(user)} />
               ))}
             </div>
           </div>
         </div>
+        )}
       </main>
       <Footer />
     </div>

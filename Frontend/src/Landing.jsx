@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-// import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import "./Landing.css";
 
 const Landing = () => {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -32,13 +32,37 @@ const Landing = () => {
   
     const endpoint = isLogin ? `${API_BASE_URL}/api/users/login` : `${API_BASE_URL}/api/users/save-profile`;
     
+    // Prepare data based on whether it's login or registration
+    let requestData;
+    if (isLogin) {
+      // For login, only send email and password
+      requestData = {
+        email: formData.email,
+        password: formData.password
+      };
+    } else {
+      // For registration, send all required fields
+      requestData = {
+        firstname: formData.name.split(' ')[0] || '',
+        lastname: formData.name.split(' ').slice(1).join(' ') || '',
+        email: formData.email,
+        password: formData.password,
+        dept: formData.major,
+        classes: formData.classes ? formData.classes.split(',').map(c => c.trim()) : [],
+        mentor: "false",
+        current_year: "Junior", // You might want to add this to the form
+        interests: [], // You might want to add this to the form
+        usc_id: "1234567890" // You need to add USC ID field to the form
+      };
+    }
+    
     try {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestData),
       });
   
       const data = await response.json();
@@ -51,9 +75,18 @@ const Landing = () => {
   
       if (isLogin) {
         alert("Login Successful!");
-        // Store JWT or session data if needed
+        // Store JWT token in localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        // Navigate to home page
+        navigate('/home');
       } else {
         alert("Profile Created!");
+        // Store JWT token in localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        // Navigate to home page
+        navigate('/home');
       }
   
     } catch (error) {

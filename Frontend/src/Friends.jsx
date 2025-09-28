@@ -1,14 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import LoadingSpinner from './LoadingSpinner';
 import './Friends.css';
 
 const Friends = () => {
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [messageInput, setMessageInput] = useState('');
+  const [friends, setFriends] = useState([]);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for friends
-  const friends = [
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+  // Get user from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userUscId = user.usc_id || '1234567890'; // fallback
+
+  useEffect(() => {
+    fetchFriends();
+  }, []);
+
+  const fetchFriends = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching friends for user:', userUscId);
+      
+      // Fetch friends list
+      const friendsResponse = await fetch(`${API_BASE_URL}/api/users/get-friends?usc_id=${userUscId}`);
+      if (friendsResponse.ok) {
+        const friendsData = await friendsResponse.json();
+        console.log('Friends data:', friendsData);
+        setFriends(friendsData);
+      } else {
+        console.error('Friends response not ok:', friendsResponse.status);
+      }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchChatHistory = async (friendUscId) => {
+    try {
+      console.log('Fetching chat history between:', userUscId, 'and', friendUscId);
+      const chatResponse = await fetch(`${API_BASE_URL}/api/users/get-chat-history?usc_id1=${userUscId}&usc_id2=${friendUscId}`);
+      if (chatResponse.ok) {
+        const chatData = await chatResponse.json();
+        console.log('Raw chat data:', chatData);
+        const transformedMessages = (chatData.chatHistory || []).map(message => ({
+          id: message._id,
+          sender: message.sender_usc_id === userUscId ? 'You' : 'Friend',
+          text: message.message,
+          time: new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        }));
+        console.log('Transformed messages:', transformedMessages);
+        setChatHistory(transformedMessages);
+      } else {
+        console.error('Chat response not ok:', chatResponse.status);
+      }
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+    }
+  };
+
+  // Mock data for friends (fallback)
+  const mockFriends = [
     {
       id: 1,
       name: "Sarah Chen",
@@ -35,14 +93,89 @@ const Friends = () => {
     }
   ];
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!messageInput.trim()) return;
+    if (!messageInput.trim() || !selectedFriend) return;
 
-    // In a real app, this would send the message to a backend
-    console.log('Sending message:', messageInput);
-    setMessageInput('');
+    try {
+      // Send message to backend
+      const response = await fetch(`${API_BASE_URL}/api/users/send-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender_usc_id: userUscId,
+          receiver_usc_id: selectedFriend.usc_id,
+          message: messageInput,
+          message_type: 'text'
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Message sent:', result);
+        
+        // Add to local state for immediate display
+        const newMessage = {
+          id: Date.now(),
+          sender: 'You',
+          text: messageInput,
+          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        };
+        
+        setChatHistory(prev => [...prev, newMessage]);
+        setMessageInput('');
+        
+        // Refresh chat history to get the latest messages
+        if (selectedFriend && selectedFriend.usc_id) {
+          setTimeout(() => {
+            fetchChatHistory(selectedFriend.usc_id);
+          }, 500);
+        }
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Error sending message. Please try again.');
+    }
   };
+
+  const handleFriendSelect = (friend) => {
+    console.log('Selected friend:', friend);
+    setSelectedFriend(friend);
+    // Fetch chat history for this friend
+    if (friend.usc_id) {
+      console.log('Fetching chat history for:', friend.usc_id);
+      fetchChatHistory(friend.usc_id);
+    }
+  };
+
+  // Transform backend friend data
+  const transformFriendData = (friend) => ({
+    id: friend._id,
+    name: `${friend.firstname || friend.first_name || ''} ${friend.lastname || friend.last_name || ''}`.trim(),
+    major: friend.dept || 'Unknown',
+    lastMessage: "Click to start chatting",
+    usc_id: friend.usc_id,
+    messages: [] // Will be loaded when selected
+  });
+
+  if (loading) {
+    return (
+      <div className="friends-container">
+        <Navbar />
+        <div className="friends-content">
+          <LoadingSpinner message="Loading your connections..." />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const displayFriends = friends.length > 0 ? friends.map(transformFriendData) : mockFriends;
 
   return (
     <div className="friends-container">
@@ -50,11 +183,11 @@ const Friends = () => {
       <div className="friends-content">
         <div className="friends-list">
           <h2>My Commons</h2>
-          {friends.map(friend => (
+          {displayFriends.map(friend => (
             <div
               key={friend.id}
               className={`friend-item ${selectedFriend?.id === friend.id ? 'selected' : ''}`}
-              onClick={() => setSelectedFriend(friend)}
+              onClick={() => handleFriendSelect(friend)}
             >
               <div className="friend-info">
                 <h3>{friend.name}</h3>
@@ -74,17 +207,24 @@ const Friends = () => {
               </div>
               
               <div className="messages-container">
-                {selectedFriend.messages.map(message => (
-                  <div
-                    key={message.id}
-                    className={`message ${message.sender === 'You' ? 'sent' : 'received'}`}
-                  >
-                    <div className="message-content">
-                      <p>{message.text}</p>
-                      <span className="message-time">{message.time}</span>
+                {console.log('Rendering chat history:', chatHistory)}
+                {chatHistory.length > 0 ? (
+                  chatHistory.map(message => (
+                    <div
+                      key={message.id}
+                      className={`message ${message.sender === 'You' ? 'sent' : 'received'}`}
+                    >
+                      <div className="message-content">
+                        <p>{message.text}</p>
+                        <span className="message-time">{message.time}</span>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="no-messages">
+                    <p>No messages yet. Start the conversation!</p>
                   </div>
-                ))}
+                )}
               </div>
 
               <form onSubmit={handleSendMessage} className="message-input-form">

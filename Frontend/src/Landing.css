@@ -8,13 +8,14 @@
 .landing-content {
   display: flex; 
   border-radius: 30px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   width: 100%;
   max-width: 1600px;
   overflow: hidden;
-  /* position: relative; */
   min-height: 800px; 
-  transition: min-height 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
 }
 
 /* .landing-content::before {

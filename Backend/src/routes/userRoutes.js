@@ -108,7 +108,15 @@ router.post(
       const payload = { user: { id: user.id } };
       const token = jwt.sign(payload, process.env.JWT_KEY, { expiresIn: "1h" });
 
-      res.json({ token, user: { id: user.id, email: user.email, firstname: user.firstname, lastname: user.lastname } });
+      res.json({ 
+        token, 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          firstname: user.firstname || user.first_name, 
+          lastname: user.lastname || user.last_name 
+        } 
+      });
 
     } catch (err) {
       console.error(err.message);
@@ -314,24 +322,24 @@ router.get("/get-all-users",  async (req, res) => {
     try {
       const filter = {};
   
-      // Apply filters if provided in the request body
-      if (req.body.dept) {
-        filter.dept = req.body.dept;
+      // Apply filters if provided in the query parameters (not body for GET)
+      if (req.query.dept) {
+        filter.dept = req.query.dept;
       }
-      if (req.body.mentor) {
-        filter.mentor = req.body.mentor;
+      if (req.query.mentor) {
+        filter.mentor = req.query.mentor;
       }
-      if (req.body.current_year) {
-        filter.current_year = req.body.current_year;
+      if (req.query.current_year) {
+        filter.current_year = req.query.current_year;
       }
-      if (req.body.classes) {
-        filter.classes = { $in: req.body.classes }; 
+      if (req.query.classes) {
+        filter.classes = { $in: req.query.classes.split(',') }; 
       }
-      if (req.body.interests) {
-        filter.interests = { $in: req.body.interests }; 
+      if (req.query.interests) {
+        filter.interests = { $in: req.query.interests.split(',') }; 
       }
   
-      const users = await User.find(filter);
+      const users = await User.find(filter).select('-password'); // Exclude passwords
   
       if (users.length === 0) {
         return res.status(404).json({ message: "No users found matching the criteria." });
@@ -349,14 +357,20 @@ router.get("/get-all-users",  async (req, res) => {
 // router.get("/get-current-user", authMiddleware, async (req, res) => {
 router.get("/get-current-user",  async (req, res) => {
     try {
+    // For now, get user by USC ID from query params (temporary fix)
+    const { usc_id } = req.query;
+    
+    if (!usc_id) {
+      return res.status(400).json({ error: "USC ID is required" });
+    }
+    
     // Fetch user & exclude password
-    // let requserid = 1234567891
-      const user = await User.findById({usc_id : req.user.id}).select("-password"); 
-    // const user = await User.find({usc_id : requserid}).select("-password"); 
-      if (!user) {
-        return res.status(404).json({ msg: "User not found" });
-      }
-      res.json(user);
+    const user = await User.findOne({ usc_id }).select("-password"); 
+    
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+    res.json(user);
     } catch (err) {
       console.error(err.message);
       res.status(500).json({ error: "Server error" });
@@ -368,9 +382,15 @@ router.get("/get-current-user",  async (req, res) => {
 // router.get("/recommend-buddies", authMiddleware, async (req, res) => {
 router.get("/recommend-buddies",  async (req, res) => {
     try {
-    //   const recommendations = await getStudyBuddyRecommendations(req.user.id);
-    const recommendations = await getStudyBuddyRecommendations('67c3d083c37de16fe1fc9ca8');
-      res.json(recommendations);
+    // For now, get user ID from query params (temporary fix)
+    const { user_id } = req.query;
+    
+    if (!user_id) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+    
+    const recommendations = await getStudyBuddyRecommendations(user_id);
+    res.json(recommendations);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch study buddy recommendations" });
     }
@@ -409,7 +429,7 @@ router.get("/get-chat-history", async (req, res) => {
 
     if (chatHistory.length === 0) {
       console.log("No chat history found for the provided USC IDs.");
-      return res.status(400).json({ message: "No chat history found" });
+      return res.json({ chatHistory: [] }); // Return empty array instead of error
     }
 
     // Return the chat history
@@ -421,6 +441,111 @@ router.get("/get-chat-history", async (req, res) => {
   }
 });
 
+// POST /send-friend-request - Send a friend request
+router.post("/send-friend-request", async (req, res) => {
+  try {
+    const { usc_id, matching_id } = req.body;
 
+    // Validate input
+    if (!usc_id || !matching_id) {
+      return res.status(400).json({ message: "usc_id and matching_id are required." });
+    }
+
+    // Check if users exist
+    const user1 = await User.findOne({ usc_id });
+    const user2 = await User.findOne({ usc_id: matching_id });
+
+    if (!user1 || !user2) {
+      return res.status(404).json({ message: "One or both users not found." });
+    }
+
+    // Check if friend request already exists
+    const existingRequest = await Friend.findOne({
+      $or: [
+        { usc_id: usc_id, matching_id: matching_id },
+        { usc_id: matching_id, matching_id: usc_id }
+      ]
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ message: "Friend request already exists." });
+    }
+
+    // Create friend request
+    const friendRequest = new Friend({
+      usc_id,
+      matching_id,
+      status: 0 // pending
+    });
+
+    await friendRequest.save();
+
+    res.json({ message: "Friend request sent successfully.", friendRequest });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+});
+
+// POST /send-message - Send a message
+router.post("/send-message", async (req, res) => {
+  try {
+    const { sender_usc_id, receiver_usc_id, message, message_type = 'text' } = req.body;
+
+    // Validate input
+    if (!sender_usc_id || !receiver_usc_id || !message) {
+      return res.status(400).json({ message: "sender_usc_id, receiver_usc_id, and message are required." });
+    }
+
+    // Create message
+    const chatMessage = new Chat({
+      sender_usc_id,
+      receiver_usc_id,
+      message,
+      message_type,
+      status: 'sent'
+    });
+
+    await chatMessage.save();
+
+    res.json({ message: "Message sent successfully.", chatMessage });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+});
+
+// PUT /update-profile - Update user profile
+router.put("/update-profile", async (req, res) => {
+  try {
+    const { usc_id, dept, classes, interests, current_year, mentor } = req.body;
+
+    if (!usc_id) {
+      return res.status(400).json({ message: "usc_id is required." });
+    }
+
+    // Find user
+    const user = await User.findOne({ usc_id });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Update fields
+    const updateData = {};
+    if (dept) updateData.dept = dept;
+    if (classes) updateData.classes = classes;
+    if (interests) updateData.interests = interests;
+    if (current_year) updateData.current_year = current_year;
+    if (mentor !== undefined) updateData.mentor = mentor;
+
+    const updatedUser = await User.findOneAndUpdate(
+      { usc_id },
+      { $set: updateData },
+      { new: true }
+    ).select('-password');
+
+    res.json({ message: "Profile updated successfully.", user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+});
 
 module.exports = router;
