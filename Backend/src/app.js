@@ -10,10 +10,8 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.json());
 app.use(cors({ origin: "http://localhost:5173" }));
+app.use(express.json());
 
 // Routes
 app.use("/api/users", require("./routes/userRoutes"));
